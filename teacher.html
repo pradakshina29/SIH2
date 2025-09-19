@@ -1,0 +1,691 @@
+<!DOCTYPE: html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Attendance System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .container-card {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease-in-out;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #4b5563;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            background-color: #fff;
+            border-radius: 0.5rem;
+        }
+        #attendance-list-table th, #attendance-list-table td,
+        #student-records-table th, #student-records-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+        .success-message {
+            color: #10b981;
+        }
+        .message-box {
+            background-color: #e5f5e3;
+            color: #2e7d32;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Application Container -->
+    <div id="app" class="w-full max-w-2xl">
+
+        <!-- Welcome View -->
+        <div id="welcome-view" class="container-card text-center space-y-4 hidden">
+            <h2 class="text-3xl font-bold text-gray-800">Welcome</h2>
+            <p class="text-gray-600">Please select your role to continue.</p>
+            <div class="flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0 mt-6">
+                <button id="show-teacher-login" class="flex-1 w-full btn-primary">Teacher</button>
+                <button id="show-student-login" class="flex-1 w-full btn-secondary">Student</button>
+            </div>
+        </div>
+
+        <!-- Teacher Login View -->
+        <div id="teacher-login-view" class="container-card">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Teacher Login</h2>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                </div>
+                <button type="submit" class="w-full btn-primary">Log In</button>
+                <p id="login-message" class="text-center text-red-500 mt-2 text-sm"></p>
+            </form>
+            <button id="back-to-welcome" class="w-full btn-secondary mt-4 hidden">Back</button>
+        </div>
+
+        <!-- Teacher Dashboard View -->
+        <div id="teacher-dashboard-view" class="container-card hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Teacher Dashboard</h2>
+                <button id="logout-btn" class="text-sm text-red-500 font-medium">Log Out</button>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-xl font-semibold text-gray-700">QR Code Generation</h3>
+                <div class="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <label for="class-select" class="text-sm text-gray-600">Select Class:</label>
+                        <select id="class-select" class="rounded-md border-gray-300 p-1 text-sm">
+                            <option value="Tamil">Tamil</option>
+                            <option value="English">English</option>
+                            <option value="Java">Java</option>
+                            <option value="Data Structure">Data Structure</option>
+                            <option value="Microprocessors">Microprocessors</option>
+                        </select>
+                    </div>
+                    <button id="generate-qr-btn" class="btn-primary flex-shrink-0">Show QR</button>
+                </div>
+                <p id="qr-message" class="text-sm text-gray-600 mt-2 hidden"></p>
+                <div id="qrcode-container" class="mt-4">
+                    <div id="qrcode"></div>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold text-gray-700">Class Roster</h3>
+                    <p id="roster-count" class="text-sm font-bold text-gray-600 mb-2">Total Students: 6</p>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold text-gray-700">Attendance for Today</h3>
+                    <p id="attendance-count" class="text-sm text-gray-600 mb-2"></p>
+                    <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                        <table id="attendance-list-table" class="min-w-full bg-white text-sm divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
+                                    <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendance-list-body" class="divide-y divide-gray-200">
+                                <!-- Attendance records will be rendered here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Student Login View -->
+        <div id="student-login-view" class="container-card hidden">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Student Login</h2>
+            <div class="space-y-4">
+                <p class="text-center text-gray-600">Enter your Student ID to access your dashboard.</p>
+                <div>
+                    <label for="student-id" class="block text-sm font-medium text-gray-700">Student ID</label>
+                    <input type="text" id="student-id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="e.g., S001">
+                </div>
+                <button id="continue-btn" class="w-full btn-primary">Continue</button>
+                <div id="student-message-box"></div>
+            </div>
+            <button id="back-to-welcome-2" class="w-full btn-secondary mt-4">Back</button>
+        </div>
+
+        <!-- Student Dashboard Container (holds main dashboard, attendance view, and check-in view) -->
+        <div id="student-dashboard-container" class="hidden">
+            <!-- Student Dashboard Main View -->
+            <div id="student-dashboard-main" class="p-6">
+                <!-- Top Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900">KPRCAS</h1>
+                    <div class="bg-gray-200 w-10 h-10 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a2 2 0 11-4 0m4 0h-4"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Dashboard Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                        <div class="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-6 h-6 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M15 11h.01M15 15h.01M19 11h.01M4 17h16a2 2 0 002-2V5a2 2 0 00-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">Calendar</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm text-center cursor-pointer" id="show-timetable-btn">
+                        <div class="w-10 h-10 bg-pink-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-6 h-6 text-pink-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">Time Table</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                        <div class="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-6 h-6 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path d="M9 17v-2m3 2v-4m3 2v-2m-3-12v.01M6 18H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v11a2 2 0 01-2 2h-2m-8-2v-4a2 2 0 012-2h2a2 2 0 012 2v4m-2-6h.01"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">Assignments</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                        <div class="w-10 h-10 bg-red-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-6 h-6 text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-9 0V3h4v2m4-2h-4m2 10V9m0-2h.01M16 17h.01M15 12V9m0 8h.01"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">Leave Management</span>
+                    </div>
+                </div>
+
+                <!-- Today's Class Schedule -->
+                <div class="mb-6">
+                    <h3 class="flex items-center text-lg font-semibold text-gray-800 mb-2">
+                        <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Today's Class Schedule
+                        <a href="#" class="text-sm text-gray-500 ml-auto">See all</a>
+                    </h3>
+                    <div class="flex space-x-4 overflow-x-auto pb-2 -mx-2 px-2">
+                        <div class="bg-white p-4 rounded-xl shadow-sm min-w-[200px] flex-shrink-0">
+                            <h4 class="font-medium text-gray-800">Tamil</h4>
+                            <p class="text-xs text-gray-500 mt-1">09:00 AM - 10:00 AM</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm min-w-[200px] flex-shrink-0">
+                            <h4 class="font-medium text-gray-800">English</h4>
+                            <p class="text-xs text-gray-500 mt-1">10:15 AM - 11:15 AM</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm min-w-[200px] flex-shrink-0">
+                            <h4 class="font-medium text-gray-800">Java</h4>
+                            <p class="text-xs text-gray-500 mt-1">11:30 AM - 12:30 PM</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assignments -->
+                <div class="mb-6">
+                    <h3 class="flex items-center text-lg font-semibold text-gray-800 mb-2">
+                        <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M9 17v-2m3 2v-4m3 2v-2m-3-12v.01M6 18H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v11a2 2 0 01-2 2h-2m-8-2v-4a2 2 0 012-2h2a2 2 0 012 2v4m-2-6h.01"></path>
+                        </svg>
+                        Assignments
+                        <a href="#" class="text-sm text-gray-500 ml-auto">See all</a>
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm">
+                            <h4 class="font-medium text-gray-800">Assignment 2</h4>
+                            <p class="text-sm text-gray-500 mt-1">Avina V R | English - III</p>
+                            <div class="mt-2 text-sm font-semibold text-red-500">Not Submitted</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm">
+                            <h4 class="font-medium text-gray-800">Real world application of Binary Tree Traversal</h4>
+                            <p class="text-sm text-gray-500 mt-1">Padmapriya S | Core Paper 4: Data Structures</p>
+                            <div class="mt-2 text-sm font-semibold text-green-500">Submitted</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm">
+                            <h4 class="font-medium text-gray-800">Java program structure with simple program</h4>
+                            <p class="text-sm text-gray-500 mt-1">Sumathi A | Core Paper 5: Java Programming</p>
+                            <div class="mt-2 text-sm font-semibold text-green-500">Submitted</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation Bar -->
+                <div class="fixed inset-x-0 bottom-0 bg-white shadow-xl flex justify-around p-4 rounded-t-xl z-50">
+                    <button class="flex flex-col items-center text-blue-600">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span class="text-xs font-medium mt-1">Home</span>
+                    </button>
+                    <button id="show-records-btn" class="flex flex-col items-center text-gray-500">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span class="text-xs font-medium mt-1">Attendance</span>
+                    </button>
+                    <button id="show-checkin-btn" class="flex flex-col items-center text-gray-500">
+                         <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center -mt-8 shadow-lg">
+                            <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="flex flex-col items-center text-gray-500">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                        <span class="text-xs font-medium mt-1">Menu</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Attendance Records View -->
+            <div id="student-attendance-view" class="container-card hidden mt-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">My Attendance Records</h3>
+                <p id="student-name-display-2" class="text-lg font-medium text-gray-800 mb-4"></p>
+                <div class="flex items-center space-x-2 mb-4">
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <p id="attendance-percentage-2" class="text-sm font-medium text-gray-600"></p>
+                </div>
+                <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                    <table id="student-records-table" class="min-w-full bg-white text-sm divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-records-body" class="divide-y divide-gray-200">
+                            <!-- Student records will be rendered here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <button id="back-to-dashboard-btn" class="w-full btn-secondary mt-4">Back to Dashboard</button>
+            </div>
+
+            <!-- Student Check-in View -->
+            <div id="student-checkin-view" class="container-card hidden mt-6">
+                 <h3 class="text-xl font-semibold text-gray-700 mb-4">Check In</h3>
+                 <p class="text-center text-gray-600 mb-4">Please scan the QR code your teacher has provided.</p>
+                 <button id="scan-qr-btn" class="w-full btn-primary">Check In (Simulated Scan)</button>
+                 <div id="student-message-box"></div>
+                 <button id="back-to-dashboard-from-checkin-btn" class="w-full btn-secondary mt-4">Back to Dashboard</button>
+            </div>
+
+            <!-- Student Time Table View -->
+            <div id="student-timetable-view" class="container-card hidden mt-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">My Weekly Schedule</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white text-sm divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                                <th class="px-6 py-3 font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timetable-body" class="divide-y divide-gray-200">
+                            <!-- Timetable will be dynamically rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+                <button id="back-to-dashboard-from-timetable-btn" class="w-full btn-secondary mt-4">Back to Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- View Elements ---
+            const welcomeView = document.getElementById('welcome-view');
+            const teacherLoginView = document.getElementById('teacher-login-view');
+            const teacherDashboardView = document.getElementById('teacher-dashboard-view');
+            const studentLoginView = document.getElementById('student-login-view');
+            const studentDashboardContainer = document.getElementById('student-dashboard-container');
+            const studentDashboardMain = document.getElementById('student-dashboard-main');
+            const studentAttendanceView = document.getElementById('student-attendance-view');
+            const studentCheckinView = document.getElementById('student-checkin-view');
+            const studentTimetableView = document.getElementById('student-timetable-view');
+
+            // --- Buttons ---
+            const showTeacherLoginBtn = document.getElementById('show-teacher-login');
+            const showStudentLoginBtn = document.getElementById('show-student-login');
+            const backToWelcomeBtn = document.getElementById('back-to-welcome');
+            const backToWelcome2Btn = document.getElementById('back-to-welcome-2');
+            const logoutBtn = document.getElementById('logout-btn');
+            const generateQrBtn = document.getElementById('generate-qr-btn');
+            const continueBtn = document.getElementById('continue-btn');
+            const scanQrBtn = document.getElementById('scan-qr-btn');
+            const showRecordsBtn = document.getElementById('show-records-btn');
+            const showCheckinBtn = document.getElementById('show-checkin-btn');
+            const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+            const backToDashboardFromCheckinBtn = document.getElementById('back-to-dashboard-from-checkin-btn');
+            const showTimetableBtn = document.getElementById('show-timetable-btn');
+            const backToDashboardFromTimetableBtn = document.getElementById('back-to-dashboard-from-timetable-btn');
+
+            // --- Forms & Inputs ---
+            const loginForm = document.getElementById('login-form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const studentIdInput = document.getElementById('student-id');
+            const classSelect = document.getElementById('class-select');
+
+            // --- Containers & Messages ---
+            const loginMessage = document.getElementById('login-message');
+            const qrCodeContainer = document.getElementById('qrcode-container');
+            const qrMessage = document.getElementById('qr-message');
+            const rosterCount = document.getElementById('roster-count');
+            const attendanceListBody = document.getElementById('attendance-list-body');
+            const attendanceCount = document.getElementById('attendance-count');
+            const studentMessageBox = document.getElementById('student-message-box');
+            const studentRecordsBody = document.getElementById('student-records-body');
+            const attendancePercentageEl = document.getElementById('attendance-percentage-2');
+            const studentNameDisplay = document.getElementById('student-name-display');
+            const studentNameDisplay2 = document.getElementById('student-name-display-2');
+            const timetableBody = document.getElementById('timetable-body');
+
+            // --- Data & State Management ---
+            const QR_SESSION_KEY = 'qrSession';
+            const ATTENDANCE_KEY = 'attendanceData';
+            const TOTAL_CLASSES = 5;
+            
+            // Hardcoded list of students for the class roster
+            const students = [
+                { id: 'S001', name: 'Alice Smith' },
+                { id: 'S002', name: 'Bob Johnson' },
+                { id: 'S003', name: 'Charlie Brown' },
+                { id: 'S004', name: 'Diana Prince' },
+                { id: 'S005', name: 'Edward Norton' },
+                { id: 'S006', name: 'Fiona Green' },
+            ];
+            
+            // Hardcoded timetable data
+            const timetableData = [
+                { day: 'Monday', subject: 'Tamil', time: '09:00 AM - 10:00 AM' },
+                { day: 'Monday', subject: 'English', time: '10:15 AM - 11:15 AM' },
+                { day: 'Monday', subject: 'Java', time: '11:30 AM - 12:30 PM' },
+                { day: 'Tuesday', subject: 'Data Structure', time: '09:00 AM - 10:00 AM' },
+                { day: 'Tuesday', subject: 'Microprocessors', time: '10:15 AM - 11:15 AM' },
+                { day: 'Tuesday', subject: 'Tamil', time: '11:30 AM - 12:30 PM' },
+                { day: 'Wednesday', subject: 'English', time: '09:00 AM - 10:00 AM' },
+                { day: 'Wednesday', subject: 'Java', time: '10:15 AM - 11:15 AM' },
+                { day: 'Wednesday', subject: 'Data Structure', time: '11:30 AM - 12:30 PM' },
+                { day: 'Thursday', subject: 'Microprocessors', time: '09:00 AM - 10:00 AM' },
+                { day: 'Thursday', subject: 'Tamil', time: '10:15 AM - 11:15 AM' },
+                { day: 'Thursday', subject: 'English', time: '11:30 AM - 12:30 PM' },
+                { day: 'Friday', subject: 'Java', time: '09:00 AM - 10:00 AM' },
+                { day: 'Friday', subject: 'Data Structure', time: '10:15 AM - 11:15 AM' },
+                { day: 'Friday', subject: 'Microprocessors', time: '11:30 AM - 12:30 PM' },
+            ];
+
+            let currentStudentId = null;
+
+            // Reusable function to render views
+            const showView = (view) => {
+                welcomeView.classList.add('hidden');
+                teacherLoginView.classList.add('hidden');
+                teacherDashboardView.classList.add('hidden');
+                studentLoginView.classList.add('hidden');
+                studentDashboardContainer.classList.add('hidden');
+                studentDashboardMain.classList.add('hidden');
+                studentAttendanceView.classList.add('hidden');
+                studentCheckinView.classList.add('hidden');
+                studentTimetableView.classList.add('hidden');
+                
+                if (view === studentDashboardContainer) {
+                    studentDashboardContainer.classList.remove('hidden');
+                    studentDashboardMain.classList.remove('hidden');
+                } else if (view === studentAttendanceView) {
+                    studentDashboardContainer.classList.remove('hidden');
+                    studentAttendanceView.classList.remove('hidden');
+                } else if (view === studentCheckinView) {
+                    studentDashboardContainer.classList.remove('hidden');
+                    studentCheckinView.classList.remove('hidden');
+                } else if (view === studentTimetableView) {
+                    studentDashboardContainer.classList.remove('hidden');
+                    studentTimetableView.classList.remove('hidden');
+                } else {
+                    view.classList.remove('hidden');
+                }
+            };
+
+            // Initial view
+            showView(teacherLoginView);
+            
+            // Function to show a temporary message
+            const showMessage = (element, message, isSuccess = false) => {
+                element.innerHTML = <div class="message-box ${isSuccess ? 'success-message' : 'text-red-500'}">${message}</div>;
+                setTimeout(() => {
+                    element.innerHTML = '';
+                }, 5000);
+            };
+
+            // --- Event Listeners ---
+            showTeacherLoginBtn.addEventListener('click', () => {
+                showView(teacherLoginView);
+            });
+            showStudentLoginBtn.addEventListener('click', () => showView(studentLoginView));
+            backToWelcomeBtn.addEventListener('click', () => showView(welcomeView));
+            backToWelcome2Btn.addEventListener('click', () => showView(welcomeView));
+
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                // Hardcoded credentials for demonstration
+                if (usernameInput.value === 'teacher' && passwordInput.value === '123') {
+                    showView(teacherDashboardView);
+                    // Start listening for real-time attendance updates
+                    renderTeacherAttendance();
+                    loginMessage.textContent = '';
+                } else {
+                    loginMessage.textContent = 'Invalid username or password.';
+                }
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                showView(teacherLoginView);
+                loginForm.reset();
+                localStorage.removeItem(QR_SESSION_KEY);
+                qrCodeContainer.innerHTML = '<div id="qrcode"></div>';
+                qrMessage.classList.add('hidden');
+            });
+
+            generateQrBtn.addEventListener('click', () => {
+                const token = attendance:${Date.now()};
+                
+                qrCodeContainer.innerHTML = '<div id="qrcode"></div>';
+                
+                const qrcode = new QRCode("qrcode", {
+                    text: token,
+                    width: 256,
+                    height: 256,
+                    colorDark : "#4f46e5",
+                    colorLight : "#f0f4f8",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+                
+                localStorage.setItem(QR_SESSION_KEY, JSON.stringify({ token, timestamp: Date.now(), classId: classSelect.value }));
+                
+                qrMessage.textContent = 'QR Code generated! It is valid for 5 minutes.';
+                qrMessage.classList.remove('hidden');
+
+                setTimeout(() => {
+                    localStorage.removeItem(QR_SESSION_KEY);
+                    qrCodeContainer.innerHTML = '<div id="qrcode"></div>';
+                    qrMessage.textContent = 'QR Code has expired. Please generate a new one.';
+                    qrMessage.classList.remove('hidden');
+                }, 300000);
+            });
+
+            continueBtn.addEventListener('click', () => {
+                const studentId = studentIdInput.value.trim();
+                if (!studentId) {
+                    showMessage(studentMessageBox, 'Please enter your Student ID.');
+                    return;
+                }
+                currentStudentId = studentId;
+                showView(studentDashboardContainer);
+
+                const student = students.find(s => s.id === studentId);
+                const studentDisplayName = student ? Student ID: ${student.id} : Student ID: ${studentId};
+                studentNameDisplay.textContent = studentDisplayName;
+                studentNameDisplay2.textContent = studentDisplayName;
+            });
+
+            showRecordsBtn.addEventListener('click', () => {
+                showView(studentAttendanceView);
+                renderStudentAttendance();
+            });
+
+            showCheckinBtn.addEventListener('click', () => {
+                showView(studentCheckinView);
+            });
+            
+            showTimetableBtn.addEventListener('click', () => {
+                showView(studentTimetableView);
+                renderTimetable();
+            });
+
+            backToDashboardBtn.addEventListener('click', () => {
+                showView(studentDashboardContainer);
+            });
+
+            backToDashboardFromCheckinBtn.addEventListener('click', () => {
+                showView(studentDashboardContainer);
+            });
+            
+            backToDashboardFromTimetableBtn.addEventListener('click', () => {
+                showView(studentDashboardContainer);
+            });
+
+            scanQrBtn.addEventListener('click', () => {
+                const studentId = currentStudentId;
+                const qrSession = JSON.parse(localStorage.getItem(QR_SESSION_KEY));
+                const now = Date.now();
+
+                if (!qrSession || (now - qrSession.timestamp > 300000)) {
+                    showMessage(studentMessageBox, 'The QR code is expired or not active. Please ask your teacher for a new one.');
+                    return;
+                }
+
+                try {
+                    const attendanceData = JSON.parse(localStorage.getItem(ATTENDANCE_KEY) || '[]');
+                    const newRecord = {
+                        studentId: studentId,
+                        classId: qrSession.classId,
+                        checkInTime: new Date().toISOString()
+                    };
+                    attendanceData.push(newRecord);
+                    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(attendanceData));
+                    showMessage(studentMessageBox, 'Attendance recorded successfully!', true);
+                } catch (e) {
+                    console.error("Error recording attendance: ", e);
+                    showMessage(studentMessageBox, "Error recording attendance. Please try again.");
+                }
+            });
+
+            // Local storage rendering functions
+            const renderTeacherAttendance = () => {
+                attendanceListBody.innerHTML = '';
+                const attendanceData = JSON.parse(localStorage.getItem(ATTENDANCE_KEY) || '[]');
+                const attendanceMap = new Map();
+                
+                attendanceData.forEach(record => {
+                    const checkInTime = new Date(record.checkInTime).getTime();
+                    // For demonstration, only show records from the last 5 minutes
+                    if (Date.now() - checkInTime < 300000) {
+                        if (!attendanceMap.has(record.studentId)) {
+                            attendanceMap.set(record.studentId, {
+                                studentId: record.studentId,
+                                timestamp: new Date(checkInTime).toLocaleString()
+                            });
+                        }
+                    }
+                });
+
+                let presentCount = 0;
+                attendanceMap.forEach(record => {
+                    presentCount++;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.studentId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.timestamp}</td>
+                    `;
+                    attendanceListBody.appendChild(row);
+                });
+                attendanceCount.textContent = Total present: ${presentCount};
+            };
+
+            const renderStudentAttendance = () => {
+                studentRecordsBody.innerHTML = '';
+                const attendanceData = JSON.parse(localStorage.getItem(ATTENDANCE_KEY) || '[]');
+                const studentRecords = attendanceData.filter(record => record.studentId === currentStudentId)
+                    .sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime));
+                
+                studentRecords.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${record.classId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(record.checkInTime).toLocaleString()}</td>
+                    `;
+                    studentRecordsBody.appendChild(row);
+                });
+                
+                const attendancePercentage = ((studentRecords.length / TOTAL_CLASSES) * 100).toFixed(2);
+                attendancePercentageEl.textContent = Attendance: ${attendancePercentage}%;
+            };
+
+            // Function to render the timetable
+            const renderTimetable = () => {
+                timetableBody.innerHTML = '';
+                let lastDay = '';
+                timetableData.forEach(period => {
+                    const row = document.createElement('tr');
+                    const dayCell = document.createElement('td');
+                    dayCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'font-medium', 'text-gray-900');
+                    if (period.day !== lastDay) {
+                        dayCell.textContent = period.day;
+                        lastDay = period.day;
+                    }
+                    row.appendChild(dayCell);
+                    
+                    const subjectCell = document.createElement('td');
+                    subjectCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'text-gray-900');
+                    subjectCell.textContent = period.subject;
+                    row.appendChild(subjectCell);
+                    
+                    const timeCell = document.createElement('td');
+                    timeCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'text-gray-500');
+                    timeCell.textContent = period.time;
+                    row.appendChild(timeCell);
+                    
+                    timetableBody.appendChild(row);
+                });
+            };
+        });
+    </script>
+
+</body>
+</html>
